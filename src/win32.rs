@@ -5,11 +5,12 @@ use windows::Win32::Foundation::{
     EXCEPTION_FLT_DENORMAL_OPERAND, EXCEPTION_FLT_DIVIDE_BY_ZERO, EXCEPTION_FLT_INVALID_OPERATION,
     EXCEPTION_FLT_OVERFLOW, EXCEPTION_FLT_UNDERFLOW, EXCEPTION_ILLEGAL_INSTRUCTION,
     EXCEPTION_IN_PAGE_ERROR, EXCEPTION_INT_DIVIDE_BY_ZERO, EXCEPTION_PRIV_INSTRUCTION,
-    EXCEPTION_SINGLE_STEP, EXCEPTION_STACK_OVERFLOW, NTSTATUS, STATUS_ACCESS_VIOLATION,
+    EXCEPTION_SINGLE_STEP, EXCEPTION_STACK_OVERFLOW, STATUS_STACK_BUFFER_OVERRUN,
+    STATUS_STACK_OVERFLOW_READ,
 };
 use windows::Win32::System::Diagnostics::Debug::{
     AddVectoredExceptionHandler, CONTEXT, EXCEPTION_CONTINUE_EXECUTION, EXCEPTION_CONTINUE_SEARCH,
-    EXCEPTION_POINTERS, EXCEPTION_RECORD, RemoveVectoredExceptionHandler, RtlCaptureContext,
+    EXCEPTION_POINTERS, RtlCaptureContext,
 };
 
 use crate::{
@@ -113,7 +114,7 @@ unsafe extern "system" fn veh_handler(exception_info: *mut EXCEPTION_POINTERS) -
         )),
 
         // Stack faults
-        EXCEPTION_STACK_OVERFLOW => {
+        STATUS_STACK_BUFFER_OVERRUN | EXCEPTION_STACK_OVERFLOW | STATUS_STACK_OVERFLOW_READ => {
             Some(FaultKind::Stack(StackFault::WindowsExceptionStackOverflow))
         }
 
@@ -133,7 +134,7 @@ unsafe extern "system" fn veh_handler(exception_info: *mut EXCEPTION_POINTERS) -
             None
         };
         let fault = Fault { kind, fault_source };
-        RECOVER_ERR.with(|re| *re.borrow_mut() = Some(fault));
+        RECOVER_ERR.with_borrow_mut(|re| *re = Some(fault));
 
         unsafe {
             // These two statements are basically the exact same, both restore the recover_ctx

@@ -2,14 +2,24 @@ use crate::{
     AlignmentFault, ArithmeticFault, Fault, FaultKind, IllegalInstructionFault, MemoryFault,
     TrapFault,
 };
-use libc::{SA_SIGINFO, c_int, sigaction, sigemptyset, siginfo_t};
+use libc::{
+    SA_ONSTACK, SA_SIGINFO, SIGSTKSZ, c_int, sigaction, sigaltstack, sigemptyset, siginfo_t,
+    stack_t, strsignal,
+};
 use setjmp::{sigjmp_buf, siglongjmp, sigsetjmp};
 use std::cell::RefCell;
 use std::ffi::c_void;
 use std::sync::Once;
 
+// We do this so that when we have a stack overflow the handler
+// can execute without issues. Aligned just to be safe.
+const ALT_STACK_SIZE: usize = SIGSTKSZ;
+
 static HANDLER_INIT: Once = Once::new();
 thread_local! {
+        // Statically allocated stack to use for the erorr handler
+    static ALT_STACK_SET: Once = Once::new();
+    static ALT_STACK: [u64; ALT_STACK_SIZE / 8] = [0u64; ALT_STACK_SIZE / 8];
     static RECOVER_CTX: RefCell<Option<sigjmp_buf>> = RefCell::new(None);
     static RECOVER_ERR: RefCell<Option<Fault>> = RefCell::new(None);
 }
@@ -134,11 +144,25 @@ pub unsafe fn try_run<F, T>(callback: &mut F) -> Result<T, super::Fault>
 where
     F: FnMut() -> T,
 {
+    ALT_STACK_SET.with(|s| {
+        s.call_once(|| unsafe {
+            let mut ss: stack_t = std::mem::zeroed();
+            ALT_STACK.with(|stack| {
+                ss.ss_sp = stack.as_ptr().cast_mut().cast();
+                ss.ss_size = ALT_STACK_SIZE;
+            });
+            if sigaltstack(&mut ss, std::ptr::null_mut()) != 0 {
+                panic!("Failed to create alt stack for signal handler!");
+            }
+        });
+    });
+
     HANDLER_INIT.call_once(|| unsafe {
         let mut sa: sigaction = std::mem::zeroed();
         sa.sa_sigaction = sig_handler as usize;
-        sa.sa_flags = SA_SIGINFO;
+        sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
         sigemptyset(&mut sa.sa_mask);
+
         for sig in [
             libc::SIGSEGV,
             libc::SIGBUS,
@@ -149,6 +173,10 @@ where
             if libc::sigaction(sig, &sa, std::ptr::null_mut()) != 0 {
                 panic!("Setting error handling action for signal {} failed", sig);
             }
+            println!(
+                "try_run listening for {}",
+                std::ffi::CStr::from_ptr(strsignal(sig)).to_string_lossy()
+            )
         }
     });
 

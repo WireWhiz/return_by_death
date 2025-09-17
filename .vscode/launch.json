@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "type": "lldb",
+            "type": "gdb",
             "request": "launch",
             "name": "Cargo launch",
             "cargo": {
@@ -17,7 +17,7 @@
             "args": []
         },
         {
-            "type": "lldb",
+            "type": "gdb",
             "request": "launch",
             "name": "Debug executable 'cross_exception'",
             "cargo": {
@@ -35,7 +35,7 @@
             "cwd": "${workspaceFolder}"
         },
         {
-            "type": "lldb",
+            "type": "gdb",
             "request": "launch",
             "name": "Debug unit tests in executable 'cross_exception'",
             "cargo": {

@@ -1,4 +1,5 @@
 # Return By Death
+![Tests](https://github.com/WireWhiz/return_by_death/actions/workflows/tests.yml/badge.svg)
 
 For the sandboxing in BraneScript I needed a way to catch errors that we know jit compiled code is 
 capable of triggering. 
