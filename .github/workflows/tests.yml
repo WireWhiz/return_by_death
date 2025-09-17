@@ -18,6 +18,12 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install LLVM (macOS only)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install llvm
+          echo "LLVM_CONFIG_PATH=$(brew --prefix llvm)/bin/llvm-config" >> $GITHUB_ENV
+
       - name: Cache cargo builds
         uses: Swatinem/rust-cache@v2
 
