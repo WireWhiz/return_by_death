@@ -1,0 +1,9 @@
+[package]
+name = "return_by_death"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+region = "3.0.2"
+windows = { version = "0.62.0", features = ["Win32", "Win32_Foundation", "Win32_System_Diagnostics", "Win32_System_Diagnostics_Debug", "Win32_System_Kernel", "Win32_System_Memory", "Win32_System_Threading"] }
+
